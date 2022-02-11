@@ -1,0 +1,17 @@
+{
+  "setting.title": "折叠",
+  "toggle.on": "已关闭",
+  "toggle.off": "已启用",
+  "settings.autoCollapseExplorer": "自动折叠文件管理器",
+  "settings.autoCollapseExplorer.desc": "自动折叠其他文件夹",
+  "settings.autoCollapseOutline": "自动折叠大纲",
+  "settings.autoCollapseOutline.desc": "自动折叠其他大纲",
+  "settings.showRibbonOnExplorer": "显示文件管理器状态栏按钮",
+  "settings.showRibbonOnExplorer.desc": "显示文件管理器状态栏按钮，用于手动折叠和展开",
+  "settings.showRibbonOnOutline": "显示大纲状态栏按钮",
+  "settings.showRibbonOnOutline.desc": "显示大纲状态栏按钮，用于手动折叠和展开",
+  "commands.collapseExplorer": "折叠文件管理器",
+  "commands.expandExplorer": "展开文件管理器",
+  "commands.collapseOutline": "折叠大纲",
+  "commands.expandOutline": "展开大纲"
+}

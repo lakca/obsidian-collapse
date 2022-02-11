@@ -1,6 +1,7 @@
+import ImportGlobPlugin from 'esbuild-plugin-import-glob'
+import builtins from 'builtin-modules'
 import esbuild from "esbuild";
 import process from "process";
-import builtins from 'builtin-modules'
 
 const banner =
 `/*
@@ -49,4 +50,7 @@ esbuild.build({
 	sourcemap: prod ? false : 'inline',
 	treeShaking: true,
 	outfile: 'main.js',
+	plugins: [
+		ImportGlobPlugin.default(),
+	],
 }).catch(() => process.exit(1));

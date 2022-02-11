@@ -1,0 +1,17 @@
+{
+  "setting.title": "Collapse",
+  "toggle.on": "Disabled",
+  "toggle.off": "Enabled",
+  "settings.autoCollapseExplorer": "Auto Collapse Explorer",
+  "settings.autoCollapseExplorer.desc": "Auto collapse explorer when opening a file.",
+  "settings.autoCollapseOutline": "Auto Collapse Outline",
+  "settings.autoCollapseOutline.desc": "Auto collapse Outline when scrolling to a specific section.",
+  "settings.showRibbonOnExplorer": "Show Explorer Ribbon",
+  "settings.showRibbonOnExplorer.desc": "Show ribbon on explorer status bar, click to collapse/expand.",
+  "settings.showRibbonOnOutline": "Show Outline Ribbon",
+  "settings.showRibbonOnOutline.desc": "Show ribbon on outline status bar, click to collapse/expand.",
+  "commands.collapseExplorer": "Collapse Explorer",
+  "commands.expandExplorer": "Expand Explorer",
+  "commands.collapseOutline": "Collapse Outline",
+  "commands.expandOutline": "Expand Outline"
+}

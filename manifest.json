@@ -1,6 +1,6 @@
 {
 	"id": "obsidian-collapse",
-	"name": "Obsidian Collapse",
+	"name": "Collapse",
 	"version": "1.0.1",
 	"minAppVersion": "0.12.0",
 	"description": "Collapse outline/explorer manually/automatically.",
