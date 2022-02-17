@@ -1,3 +1,3 @@
-import CollapsePlugin from './src/plugin';
+import CollapsePlugin from './src/plugin'
 
-export default CollapsePlugin;
+export default CollapsePlugin

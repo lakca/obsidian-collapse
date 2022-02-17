@@ -2,3 +2,10 @@
 body {
     color: red;
 }
+
+.plugin-collapse-active-tree-item > .tree-item-self {
+    /* support (most popular) themes: default, blue topaz, deep work, minimal, things, yin ang yang. */
+    background-color: var(--theme-color-translucent-1, var(--background-zero, var(--background-secondary-alt)));
+    color: var(--text-normal);
+    border-radius: 5px;
+}

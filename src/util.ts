@@ -4,7 +4,7 @@ import { filenames as localeFilenames, default as localeFiles } from '../locale/
 import en from '../locale/en.json'
 
 const LOCALES: { [key: string]: Partial<typeof en>} = Object.fromEntries(localeFilenames.map((name: string, i: number) => {
-  return [name.match(/([^\/]+)\.json$/)[1], localeFiles[i].default]
+  return [name.match(/([^/]+)\.json$/)[1], localeFiles[i].default]
 }))
 
 // https://forum.obsidian.md/t/a-way-to-get-obsidian-s-currently-set-language/17829/4

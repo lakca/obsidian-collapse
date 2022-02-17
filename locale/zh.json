@@ -10,8 +10,17 @@
   "settings.showRibbonOnExplorer.desc": "显示文件管理器状态栏按钮，用于手动折叠和展开",
   "settings.showRibbonOnOutline": "显示大纲状态栏按钮",
   "settings.showRibbonOnOutline.desc": "显示大纲状态栏按钮，用于手动折叠和展开",
+  "settings.autoCollapseOffsetTop": "大纲自动折叠顶部偏移量（px）",
   "commands.collapseExplorer": "折叠文件管理器",
   "commands.expandExplorer": "展开文件管理器",
   "commands.collapseOutline": "折叠大纲",
-  "commands.expandOutline": "展开大纲"
+  "commands.expandOutline": "展开大纲",
+  "commands.toggleAutoCollapseExplorer": "开启/关闭自动折叠文件管理器",
+  "commands.toggleAutoCollapseOutline": "开启/关闭自动折叠大纲",
+  "notice.autoCollapseOutline.true": "自动折叠大纲已开启",
+  "notice.autoCollapseOutline.false": "自动折叠大纲已关闭",
+  "notice.autoCollapseExplorer.true": "自动折叠文件管理器已开启",
+  "notice.autoCollapseExplorer.false": "自动折叠文件管理器已关闭",
+  "notice.loadPlugin": "Obsidian-Collapse 插件加载成功!",
+  "notice.unloadPlugin": "Obsidian-Collapse 插件已卸载!"
 }
