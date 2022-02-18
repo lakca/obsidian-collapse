@@ -1,6 +1,7 @@
-import BaseProvider from './base'
+import { CharNumber, Editor, IterLine, MarkdownEditView, MarkdownPreviewView, MarkdownView, PluginSettingTab, Setting, debounce } from 'obsidian'
 import { MarkdownSection, OutlineItem, OutlineView, SectionLoc } from '../interface'
-import { MarkdownView, PluginSettingTab, Setting } from 'obsidian'
+
+import BaseProvider from './base'
 import CollapsePlugin from '../plugin'
 import { t } from 'src/util'
 
@@ -11,27 +12,31 @@ export default class OutlineProvider extends BaseProvider<'outline'> {
 
   readonly activeClass = 'plugin-collapse-active-tree-item'
 
-  private previousHeader: MarkdownSection = null
+  private savedHeadingSection: MarkdownSection = null
 
   get activeMarkdown() {
     return this.plugin.app.workspace.getActiveViewOfType(MarkdownView)
   }
 
+  private compareSection(sec: MarkdownSection, sec2: MarkdownSection) {
+    return sec && sec2 && sec.level === sec2.level && sec.lineStart === sec2.lineStart && sec.lineEnd === sec2.lineEnd
+  }
+
   constructor(plugin: CollapsePlugin) {
     super(plugin)
-    this.plugin.onFraming(() => {
+    this.plugin.onFraming(debounce(() => {
       if (this.plugin.settings[this.autoCollapseSettingName] && this.activeMarkdown) {
-        const { header } = this.getActiveMarkdownSections()
-        if (header !== this.previousHeader) {
-          this.previousHeader = header
+        const { heading } = this.getActiveMarkdownSectionInfo()
+        if (heading && !this.compareSection(heading, this.savedHeadingSection)) {
+          this.savedHeadingSection = heading
           this.focusHeading({
-            level: header.level,
-            lineStart: header.lineStart,
-            lineEnd: header.lineEnd,
+            level: heading.level,
+            lineStart: heading.lineStart,
+            lineEnd: heading.lineEnd,
           })
         }
       }
-    })
+    }, 200))
   }
 
   getItems(view: OutlineView) {
@@ -56,25 +61,107 @@ export default class OutlineProvider extends BaseProvider<'outline'> {
     })
   }
 
-  getActiveMarkdownSections(): {
-    header?: MarkdownSection,
-    edge?: MarkdownSection,
-  } {
-    const { activeMarkdown } = this
-    const { autoCollapseOffsetTop } = this.plugin.settings
-    if (!activeMarkdown) return {}
-    const previewMode = activeMarkdown.previewMode
-    let header, edge
-    previewMode.renderer.sections.find(section => {
-      const flag = previewMode.renderer.getSectionTop(section) >
-      previewMode.renderer.previewEl.scrollTop + autoCollapseOffsetTop
-      if (!flag) {
-        if (section.el.firstElementChild.tagName[0].toLowerCase() === 'h') header = section
-        edge = section
+  getLevel(text: string) {
+    const m = text.match(/^\s*(#{1,6})\s/)
+    return m ? m[1].length : 7
+  }
+
+  private getSectionFromCharacterIndices(editor: Editor, posAtStart: CharNumber, posAtEnd: CharNumber): MarkdownSection & { text: string } {
+    const startLine = editor.cm.state.doc.lineAt(posAtStart)
+    const endLine = posAtEnd == null ? startLine : editor.cm.state.doc.lineAt(posAtEnd)
+    return {
+      level: this.getLevel(startLine.text),
+      lineStart: startLine.number - 1,
+      lineEnd: endLine.number - 1,
+      text: startLine.text,
+    }
+  }
+
+  /**
+   * Get heading section of the given section.
+   */
+  private getHeadingOfSection(editor: Editor, sec: MarkdownSection): MarkdownSection {
+    const start = 1
+    const gen = editor.cm.state.doc.iterLines(start, sec.lineStart)
+    let next: IterLine
+    let heading: MarkdownSection
+    let lineNumber = start - 1
+    do {
+      next = gen.next()
+      lineNumber++
+      const level = this.getLevel(next.value)
+      if (level < 7) {
+        heading = {
+          level,
+          lineStart: lineNumber,
+          lineEnd: lineNumber,
+          text: next.value,
+        }
       }
-      return flag
-    })
-    return { header, edge }
+    } while (!next.done)
+    return heading
+  }
+
+  /**
+   * Get the heading (or itself) of the top most block in the viewport.
+   * @returns
+   */
+  getActiveMarkdownSectionInfo() {
+    const { activeMarkdown } = this
+    const selections: {
+      heading?: MarkdownSection,
+      edge?: MarkdownSection,
+    } = {}
+    if (activeMarkdown) {
+      const { autoCollapseOffsetTop } = this.plugin.settings
+      const { currentMode } = activeMarkdown
+      if (MarkdownPreviewView && currentMode instanceof MarkdownPreviewView) {
+        const previewMode = currentMode
+        previewMode.renderer.sections.find(section => {
+          const found = previewMode.renderer.getSectionTop(section) >
+          previewMode.renderer.previewEl.scrollTop + autoCollapseOffsetTop
+          if (!found) {
+            if (section.level < 7) {
+              selections.heading = section
+            }
+            selections.edge = section
+          }
+          return found
+        })
+      }
+      // TODO: mobile
+      else if (MarkdownEditView && currentMode instanceof MarkdownEditView) {
+      }
+      /**
+       * ! Constructor of `editMode` cannot be found in obsidian (exports).
+       *
+       * live/source mode is distinguished by 'editMode.sourceMode' attribute.
+       */
+      else if (currentMode === activeMarkdown.editMode) {
+        const { editor } = activeMarkdown
+        const edgeTop = editor.cm.dom.getBoundingClientRect().top
+
+        /**
+         * ! The children property doesn't contain all lines in the file (to prevent overload).
+         */
+        for (const line of editor.cm.docView.children) {
+          const sectionInfo = this.getSectionFromCharacterIndices(editor, line.posAtStart, line.posAtEnd)
+          if (sectionInfo.level < 7) {
+            selections.heading = sectionInfo
+          }
+          if (line.dom.getBoundingClientRect().top > edgeTop + autoCollapseOffsetTop) {
+            selections.edge = sectionInfo
+            // if no heading in the viewport, try getting the heading section of the edge section.
+            if (!selections.heading) {
+              selections.heading = this.getHeadingOfSection(editor, selections.edge)
+            }
+            break
+          }
+        }
+      }
+
+    }
+    return selections
   }
 
   collapseAll(outline?: OutlineView) {

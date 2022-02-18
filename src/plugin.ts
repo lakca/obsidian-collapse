@@ -54,7 +54,7 @@ export default class CollapsePlugin extends Plugin {
 			window.requestAnimationFrame(() => {
 				this.frameCallbacks.forEach(cb => {
 					try { cb() } catch(e) {
-						console.error(e)
+						console.trace(e)
 					}
 				})
 				this.startedFraming = false

@@ -1,7 +1,8 @@
-import { FileExplorerItem, FileExplorerView } from 'src/interface'
 import BaseProvider, { Leaf } from './base'
-import CollapsePlugin from '../plugin'
+import { FileExplorerItem, FileExplorerView } from 'src/interface'
 import { FileView, TFile, TFolder } from 'obsidian'
+
+import CollapsePlugin from '../plugin'
 
 export default class ExplorerProvider extends BaseProvider<'explorer'> {
   readonly type = 'explorer' as const
@@ -45,7 +46,6 @@ export default class ExplorerProvider extends BaseProvider<'explorer'> {
       this.originHandleFileClick[leaf.id] = leaf.view.handleFileClick
 
       leaf.view.handleFileClick = function(evt, file) {
-        console.log('handleFileClick', file)
         if ('children' in file.file && file.collapsed) {
           self.focusFile(file.file)
           file.setCollapsed(true)

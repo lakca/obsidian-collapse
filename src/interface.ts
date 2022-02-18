@@ -1,4 +1,4 @@
-import { MarkdownSourceView, View, HeadingCache, TFile, TFolder } from "obsidian"
+import { HeadingCache, MarkdownPreviewEvents, MarkdownSubView, TFile, TFolder, View } from "obsidian"
 
 export interface Collapsable {
   setCollapsed?: (collapsed: boolean) => void
@@ -13,9 +13,7 @@ export interface SectionLoc {
 }
 
 export interface MarkdownSection extends SectionLoc {
-  el: HTMLElement
-  headingCollapsed: boolean,
-  setCollapsed(collapsed: boolean): void
+  [key: string]: unknown
 }
 
 declare module 'obsidian' {
@@ -27,23 +25,64 @@ declare module 'obsidian' {
       getSectionTop(section: MarkdownSection): number
     }
   }
+
+  type CodeMirrorLineElement = HTMLElement
+  /** Start from 0 */
+  type CharIndex = number
+  /** Start from 1 */
+  type CharNumber = number
+  /** Start from 1 */
+  type LineNumber = number
+  interface LineInfo {
+    from: CharIndex
+    to: CharIndex
+    number: LineNumber
+    text: string
+  }
+
+  interface IterLine {
+    done: boolean,
+    value: string, inner: {
+    /** first character index */
+    from: CharIndex,
+    /** last character index including line-feed */
+    pos: CharIndex,
+  } }
+  interface LineIterator {
+    next(): IterLine
+    [Symbol.iterator](): Generator<string>
+  }
+  interface Editor {
+    cm: {
+      dom: HTMLElement
+      state: {
+        doc: {
+          /** Get line by line number */
+          line(line: LineNumber): LineInfo
+          /** Get line by char number */
+          lineAt(charPos: CharIndex): LineInfo
+          /** Iterate on lines (text) */
+          iterLines(lineStart: LineNumber, lienEnd: LineNumber): LineIterator
+        }
+      },
+      docView: {
+        /** Only lines in rendered view. */
+        children: Array<{
+          dom: CodeMirrorLineElement
+          posAtStart: CharIndex
+          posAtEnd: CharIndex
+        }>
+      }
+    }
+  }
   interface MarkdownView {
-    scroll: number
+    editMode: MarkdownSubView,
     file: TFile
-    editMode: MarkdownEditView
   }
   interface WorkspaceLeaf {
     id: string
   }
 }
-
-export interface MarkdownEditView extends MarkdownSourceView {
-  contentContainerEl: HTMLElement
-  editorEl: HTMLElement
-  // live preview / source mode
-  sourceMode: boolean
-}
-
 export interface OutlineView extends View {
   getHeadings(): HeadingCache[]
   file: TFile
@@ -72,4 +111,8 @@ export interface FileExplorerView extends View {
 
 export interface FileExplorerItem extends Collapsable {
   file: TFolder & Collapsable & { el: HTMLElement } | TFile & { el: HTMLElement }
+}
+
+export interface MarkdownEditMode extends MarkdownSubView, MarkdownPreviewEvents {
+  sourceMode: boolean
 }
