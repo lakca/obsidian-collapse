@@ -27,10 +27,10 @@ type ins<T extends { [k: string]: abstract new (...args: unknown[]) => unknown }
 }
 // app.plugins.plugins['obsidian-collapse']
 export default class CollapsePlugin extends Plugin {
-	settings: CollapsePluginSettings
-  providers: ins<typeof providers>
 
-	protected activeMarkdownView: MarkdownView | null = null
+	settings: CollapsePluginSettings
+
+	providers: ins<typeof providers>
 
 	private frameCallbacks: (() => void)[] = []
 

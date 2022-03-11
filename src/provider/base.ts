@@ -16,6 +16,8 @@ export interface Leaf<T extends ProviderTypes> extends WorkspaceLeaf {
 
 export default interface BaseProvider<T extends ProviderTypes> {
   on(name: 'new-leaves', callback: (newLeaves: Leaf<T>[]) => unknown, ctx?: unknown): EventRef
+  registerCommand(): void
+  registerSettingTab(settingTab: PluginSettingTab): void
 }
 export default abstract class BaseProvider<T extends ProviderTypes> extends Events {
 
@@ -23,19 +25,9 @@ export default abstract class BaseProvider<T extends ProviderTypes> extends Even
 
   abstract readonly leafType: string
 
-  private leavesIdCache: string[] = this.ids
-
   abstract collapseAll(): void
 
   abstract expandAll(): void
-
-  registerCommand() {
-    // skip
-  }
-
-  registerSettingTab(settingTab: PluginSettingTab) {
-    // skip
-  }
 
   get autoCollapseSettingName() {
     return `autoCollapse${upperFirst(this.type)}` as `autoCollapse${Capitalize<T>}`
@@ -67,12 +59,9 @@ export default abstract class BaseProvider<T extends ProviderTypes> extends Even
   get views() {
     return this.leaves.map(e => e.view)
   }
-  get ids() {
-    return this.leaves.map(e => e.id)
-  }
 
   eachView<V extends ViewTypes[T]>(cb: (view: V) => void, view?: V|V[]) {
-    const views = (view ? [view] : this.views) as V[]
+    const views = (view ? Array.isArray(view) ? view : [view] : this.views) as V[]
     views.forEach(view => cb(view))
   }
 
@@ -80,10 +69,7 @@ export default abstract class BaseProvider<T extends ProviderTypes> extends Even
     super()
 
     this.plugin.registerEvent(this.plugin.app.workspace.on('layout-change', () => {
-      const leaves = this.leaves
-      const tmp = Object.fromEntries(this.leavesIdCache.map(id => [id, true]))
-      const newleaves = leaves.filter(leaf => !tmp[leaf.id])
-      this.trigger('new-leaves', newleaves)
+      this.trigger('new-leaves', this.leaves)
     }))
   }
 
@@ -103,20 +89,7 @@ export default abstract class BaseProvider<T extends ProviderTypes> extends Even
         new Notice(t(`notice.${autoCollapseSettingName}.${this.plugin.settings[autoCollapseSettingName]}`), 1000)
       })
     })
-
-    // ribbon
-    // new Setting(containerEl)
-    // .setName(t(`settings.${showRibbonSettingName}`))
-    // .setDesc(t(`settings.${showRibbonSettingName}.desc`))
-    // .addToggle(toggle => {
-    //   toggle
-    //   .setValue(this.plugin.settings[showRibbonSettingName])
-    //   .onChange(checked => {
-    //     this.plugin.settings[showRibbonSettingName] = checked
-    //   })
-    // })
-
-    this.registerSettingTab(settingTab)
+    this.registerSettingTab && this.registerSettingTab(settingTab)
   }
 
   mountCommand() {
@@ -153,7 +126,7 @@ export default abstract class BaseProvider<T extends ProviderTypes> extends Even
       callback: () => this.toggleAutoCollapse(),
     })
 
-    this.registerCommand()
+    this.registerCommand && this.registerCommand()
   }
 
   toggleAutoCollapse() {

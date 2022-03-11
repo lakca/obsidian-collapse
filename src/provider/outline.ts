@@ -1,46 +1,69 @@
-import { CharNumber, Editor, IterLine, MarkdownEditView, MarkdownPreviewView, MarkdownView, PluginSettingTab, Setting, debounce } from 'obsidian'
+import { CharNumber, Editor, IterLine, MarkdownPreviewView, MarkdownView, PluginSettingTab, Setting } from 'obsidian'
 import { MarkdownSection, OutlineItem, OutlineView, SectionLoc } from '../interface'
 
 import BaseProvider from './base'
 import CollapsePlugin from '../plugin'
 import { t } from 'src/util'
 
+interface Sections {
+  heading?: MarkdownSection
+  edge?: MarkdownSection
+}
 export default class OutlineProvider extends BaseProvider<'outline'> {
+
   readonly type = 'outline' as const
 
   readonly leafType = 'outline' as const
 
   readonly activeClass = 'plugin-collapse-active-tree-item'
 
-  private savedHeadingSection: MarkdownSection = null
+  private lastScroll = -1
 
-  get activeMarkdown() {
-    return this.plugin.app.workspace.getActiveViewOfType(MarkdownView)
+  private sections: Sections = {}
+
+  get autoCollapsing() {
+    return this.plugin.settings[this.autoCollapseSettingName]
   }
 
-  private compareSection(sec: MarkdownSection, sec2: MarkdownSection) {
-    return sec && sec2 && sec.level === sec2.level && sec.lineStart === sec2.lineStart && sec.lineEnd === sec2.lineEnd
+  get markdownView() {
+    const leaf = this.plugin.app.workspace.activeLeaf
+    return leaf && leaf.view instanceof MarkdownView ? leaf.view : void 0
+  }
+
+  /** Current active (leaf) file view scroll (lines) */
+  get scroll() {
+    return this.markdownView?.scroll
+  }
+
+  /** Current active (leaf) file headings */
+  get headings() {
+    return this.plugin.app.metadataCache.getFileCache(this.markdownView.file)?.headings
   }
 
   constructor(plugin: CollapsePlugin) {
     super(plugin)
-    this.plugin.onFraming(debounce(() => {
-      if (this.plugin.settings[this.autoCollapseSettingName] && this.activeMarkdown) {
-        const { heading } = this.getActiveMarkdownSectionInfo()
-        if (heading && !this.compareSection(heading, this.savedHeadingSection)) {
-          this.savedHeadingSection = heading
+
+    this.plugin.onFraming(() => {
+      if (!this.autoCollapsing) return
+      if (!this.markdownView) return
+      if (!this.headings?.length) return
+      const move = this.scroll - this.lastScroll
+      this.lastScroll = this.scroll
+      if (move > 1 || move < -1) {
+        this.syncSections()
+        if (this.sections.heading) {
           this.focusHeading({
-            level: heading.level,
-            lineStart: heading.lineStart,
-            lineEnd: heading.lineEnd,
+            level: this.sections.heading.level,
+            lineStart: this.sections.heading.lineStart,
+            lineEnd: this.sections.heading.lineEnd,
           })
         }
       }
-    }, 200))
+    })
   }
 
   getItems(view: OutlineView) {
-    return view.treeView.allItems
+    return view.treeView.children && view.treeView.children.length ? view.treeView.allItems : []
   }
 
   registerSettingTab(settingTab: PluginSettingTab) {
@@ -102,72 +125,77 @@ export default class OutlineProvider extends BaseProvider<'outline'> {
     return heading
   }
 
+  private clearSync() {
+    this.sections = {}
+  }
+
+  private syncMarkdownPreviewView(previewMode: MarkdownPreviewView) {
+    this.clearSync()
+    const sections = this.sections
+    const { autoCollapseOffsetTop } = this.plugin.settings
+    previewMode.renderer.sections.find(section => {
+      const found = previewMode.renderer.getSectionTop(section) >
+      previewMode.renderer.previewEl.scrollTop + autoCollapseOffsetTop
+      if (!found) {
+        if (section.level < 7) {
+          sections.heading = section
+        }
+        sections.edge = section
+      }
+      return found
+    })
+  }
+
+  /**
+   * ! Constructor of `editMode` cannot be found in obsidian (exports).
+   *
+   * live/source mode is distinguished by 'editMode.sourceMode' attribute.
+   */
+  private syncMarkdownEditView(editor: Editor) {
+    this.clearSync()
+    const edgeTop = editor.cm.dom.getBoundingClientRect().top
+    const { sections } = this
+    const { autoCollapseOffsetTop } = this.plugin.settings
+
+    /**
+     * ! The children property doesn't contain all lines in the file (to prevent overload).
+     */
+    for (const line of editor.cm.docView.children) {
+      const sectionInfo = this.getSectionFromCharacterIndices(editor, line.posAtStart, line.posAtEnd)
+      if (sectionInfo.level < 7) {
+        sections.heading = sectionInfo
+      }
+      if (line.dom.getBoundingClientRect().top > edgeTop + autoCollapseOffsetTop) {
+        sections.edge = sectionInfo
+        // if no heading in the viewport, try getting the heading section of the edge section.
+        if (!sections.heading) {
+          sections.heading = this.getHeadingOfSection(editor, sections.edge)
+        }
+        break
+      }
+    }
+  }
+
   /**
    * Get the heading (or itself) of the top most block in the viewport.
    * @returns
    */
-  getActiveMarkdownSectionInfo() {
-    const { activeMarkdown } = this
-    const selections: {
-      heading?: MarkdownSection,
-      edge?: MarkdownSection,
-    } = {}
-    if (activeMarkdown) {
-      const { autoCollapseOffsetTop } = this.plugin.settings
-      const { currentMode } = activeMarkdown
-      if (MarkdownPreviewView && currentMode instanceof MarkdownPreviewView) {
-        const previewMode = currentMode
-        previewMode.renderer.sections.find(section => {
-          const found = previewMode.renderer.getSectionTop(section) >
-          previewMode.renderer.previewEl.scrollTop + autoCollapseOffsetTop
-          if (!found) {
-            if (section.level < 7) {
-              selections.heading = section
-            }
-            selections.edge = section
-          }
-          return found
-        })
+  syncSections() {
+    const { markdownView } = this
+    if (markdownView) {
+      const state = markdownView.getState()
+      if (state.mode === 'preview') {
+        this.syncMarkdownPreviewView(markdownView.previewMode)
+      } else if (state.mode === 'source') {
+        this.syncMarkdownEditView(markdownView.editor)
       }
-      // TODO: mobile
-      else if (MarkdownEditView && currentMode instanceof MarkdownEditView) {
-      }
-      /**
-       * ! Constructor of `editMode` cannot be found in obsidian (exports).
-       *
-       * live/source mode is distinguished by 'editMode.sourceMode' attribute.
-       */
-      else if (currentMode === activeMarkdown.editMode) {
-        const { editor } = activeMarkdown
-        const edgeTop = editor.cm.dom.getBoundingClientRect().top
-
-        /**
-         * ! The children property doesn't contain all lines in the file (to prevent overload).
-         */
-        for (const line of editor.cm.docView.children) {
-          const sectionInfo = this.getSectionFromCharacterIndices(editor, line.posAtStart, line.posAtEnd)
-          if (sectionInfo.level < 7) {
-            selections.heading = sectionInfo
-          }
-          if (line.dom.getBoundingClientRect().top > edgeTop + autoCollapseOffsetTop) {
-            selections.edge = sectionInfo
-            // if no heading in the viewport, try getting the heading section of the edge section.
-            if (!selections.heading) {
-              selections.heading = this.getHeadingOfSection(editor, selections.edge)
-            }
-            break
-          }
-        }
-      }
-
     }
-    return selections
   }
 
   collapseAll(outline?: OutlineView) {
     this.eachView(view => {
       this.getItems(view).forEach(item => {
-        if (item.setCollapsed) item.setCollapsed(true)
+        item.setCollapsed && item.setCollapsed(true)
       })
     }, outline)
   }
@@ -175,7 +203,7 @@ export default class OutlineProvider extends BaseProvider<'outline'> {
   expandAll(outline?: OutlineView) {
     this.eachView(view => {
       this.getItems(view).forEach(item => {
-        if (item.setCollapsed) item.setCollapsed(false)
+        item.setCollapsed && item.setCollapsed(false)
       })
     }, outline)
   }
@@ -188,21 +216,21 @@ export default class OutlineProvider extends BaseProvider<'outline'> {
       const items = this.getItems(view)
       items.forEach((item, idx) => {
         if (index > -1) {
-          item.setCollapsed(true)
+          item.setCollapsed && item.setCollapsed(true)
           item.el.removeClass(this.activeClass)
         } else if (item.heading.level < itemLoc.level) {
           tree[item.heading.level] = item
         } else if (item.heading.level === itemLoc.level
           && item.heading.position.start.line === itemLoc.lineStart
           && item.heading.position.end.line === itemLoc.lineEnd) {
-            item.setCollapsed(false)
+            item.setCollapsed && item.setCollapsed(false)
             item.el.addClass(this.activeClass)
             index = idx
         }
       })
       for (let i = 0; i < index; i++) {
         const item = items[i]
-        item.setCollapsed(item !== tree[item.heading.level])
+        item.setCollapsed && item.setCollapsed(item !== tree[item.heading.level])
         item.el.removeClass(this.activeClass)
       }
     }, outline)

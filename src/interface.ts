@@ -76,18 +76,19 @@ declare module 'obsidian' {
     }
   }
   interface MarkdownView {
-    editMode: MarkdownSubView,
     file: TFile
+    scroll: number
   }
   interface WorkspaceLeaf {
     id: string
   }
 }
 export interface OutlineView extends View {
-  getHeadings(): HeadingCache[]
-  file: TFile
+  /** compute headings from file content (metadataCache) */
+  // getHeadings(): HeadingCache[]
+  // file: TFile
   treeView: {
-    childrenEl: HTMLElement
+    // childrenEl: HTMLElement
     children: OutlineItem[]
     allItems: OutlineItem[]
   }
@@ -95,12 +96,12 @@ export interface OutlineView extends View {
 
 export interface OutlineItem extends Collapsable {
   el: HTMLElement
-  childrenEl: HTMLElement
-  selfEl: HTMLElement
-  innerEl: HTMLElement
+  // childrenEl: HTMLElement
+  // selfEl: HTMLElement
+  // innerEl: HTMLElement
   heading: HeadingCache
   children?: OutlineItem[]
-  setActive(active: boolean): void
+  // setActive(active: boolean): void
 }
 
 export interface FileExplorerView extends View {
@@ -111,8 +112,4 @@ export interface FileExplorerView extends View {
 
 export interface FileExplorerItem extends Collapsable {
   file: TFolder & Collapsable & { el: HTMLElement } | TFile & { el: HTMLElement }
-}
-
-export interface MarkdownEditMode extends MarkdownSubView, MarkdownPreviewEvents {
-  sourceMode: boolean
 }

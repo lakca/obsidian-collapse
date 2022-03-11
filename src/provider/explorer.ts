@@ -5,11 +5,12 @@ import { FileView, TFile, TFolder } from 'obsidian'
 import CollapsePlugin from '../plugin'
 
 export default class ExplorerProvider extends BaseProvider<'explorer'> {
+
   readonly type = 'explorer' as const
 
   readonly leafType = 'file-explorer' as const
 
-  private originHandleFileClick: Record<string, (evt: Event, file: FileExplorerItem, ...args: unknown[]) => unknown> = {}
+  private oldHandleFileClickMap: Map<string, FileExplorerView['handleFileClick']> = new Map()
 
   constructor(plugin: CollapsePlugin) {
     super(plugin)
@@ -21,36 +22,35 @@ export default class ExplorerProvider extends BaseProvider<'explorer'> {
       }
     }))
 
-    this.handleNewLeaves(this.leaves)
-
-    // new explorer leaves added
-    this.plugin.registerEvent(this.on('new-leaves', newLeaves => {
-      this.handleNewLeaves(newLeaves)
-    }))
-
+    // undo sth on leaves
     this.plugin.register(() => {
-      Object.entries(this.originHandleFileClick).forEach(([id, handleFileClick]) => {
+      this.oldHandleFileClickMap.forEach((handleFileClick, id) => {
         const leaf = this.plugin.app.workspace.getLeafById(id) as Leaf<'explorer'>
         leaf && (leaf.view.handleFileClick = handleFileClick)
       })
     })
+
+    // do sth on leaves
+    this.plugin.registerEvent(this.on('new-leaves', leaves => {
+      this.modifyLeaves(leaves)
+    }))
+    this.modifyLeaves(this.leaves)
   }
 
-  private handleNewLeaves(newLeaves: Leaf<'explorer'>[] = []) {
+  private modifyLeaves(leaves: Leaf<'explorer'>[] = []) {
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const self = this
-    newLeaves.forEach(leaf => {
+    leaves.forEach(leaf => {
       // handle onTitleElClick (click file-explorer folder item)
-      if (this.originHandleFileClick[leaf.id]) return
-
-      this.originHandleFileClick[leaf.id] = leaf.view.handleFileClick
-
-      leaf.view.handleFileClick = function(evt, file) {
-        if ('children' in file.file && file.collapsed) {
-          self.focusFile(file.file)
-          file.setCollapsed(true)
+      if (!this.oldHandleFileClickMap.has(leaf.id)) {
+        this.oldHandleFileClickMap.set(leaf.id, leaf.view.handleFileClick)
+        leaf.view.handleFileClick = function(evt, file) {
+          if ('children' in file.file && file.collapsed) {
+            self.focusFile(file.file)
+            file.setCollapsed(true)
+          }
+          self.oldHandleFileClickMap.get(leaf.id).apply(this, arguments)
         }
-        self.originHandleFileClick[leaf.id].apply(this, arguments)
       }
     })
   }
