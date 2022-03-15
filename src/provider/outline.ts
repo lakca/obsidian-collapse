@@ -48,8 +48,8 @@ export default class OutlineProvider extends BaseProvider<'outline'> {
       if (!this.markdownView) return
       if (!this.headings?.length) return
       const move = this.scroll - this.lastScroll
-      this.lastScroll = this.scroll
-      if (move > 1 || move < -1) {
+      if (move > 10 || move < -10) {
+        this.lastScroll = this.scroll
         this.syncSections()
         if (this.sections.heading) {
           this.focusHeading({
